@@ -4,18 +4,16 @@ import 'leaflet/dist/leaflet.css';
 import proj4 from 'proj4';
 import L from 'leaflet';
 
-// Fixa ikon-problem i Leaflet
-import icon from 'leaflet/dist/images/marker-icon.png';
-import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+// Alternativ lösning för ikon-problem i Leaflet
+// Ta bort standardmarkörikonens inbyggda URL
+delete L.Icon.Default.prototype._getIconUrl;
 
-let DefaultIcon = L.icon({
-  iconUrl: icon,
-  shadowUrl: iconShadow,
-  iconSize: [25, 41],
-  iconAnchor: [12, 41]
+// Ange manuellt URL för ikon-bildfiler
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
 });
-
-L.Marker.prototype.options.icon = DefaultIcon;
 
 // Definiera projektioner för konvertering
 // WGS84 (vanliga GPS-koordinater) till SWEREF99TM
