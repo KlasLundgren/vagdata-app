@@ -43,6 +43,30 @@ html, body, #root {
   font-size: 1.5rem;
 }
 
+/* API-metod knapp */
+.api-method-toggle {
+  margin-top: 5px;
+}
+
+.api-method-btn {
+  background-color: #555;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 5px 10px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.api-method-btn:hover {
+  background-color: #444;
+}
+
+.api-method-btn.active {
+  background-color: #3388ff;
+}
+
 /* Karta */
 .map-container {
   height: 100%;
@@ -62,7 +86,7 @@ html, body, #root {
 /* Popup-stilar */
 .leaflet-popup-content {
   font-size: 0.9rem;
-  min-width: 200px;
+  min-width: 220px;
 }
 
 .popup-content h3 {
@@ -98,6 +122,8 @@ html, body, #root {
   border-radius: 4px;
   margin-top: 5px;
   font-size: 0.9rem;
+  max-width: 90%;
+  word-break: break-word;
 }
 
 /* Koordinatpanel */
@@ -105,9 +131,9 @@ html, body, #root {
   position: absolute;
   bottom: 20px;
   left: 20px;
-  background-color: white;
+  background-color: rgba(255, 255, 255, 0.9);
   border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
   padding: 15px;
   width: 280px;
   z-index: 1000;
@@ -132,9 +158,9 @@ html, body, #root {
   position: absolute;
   bottom: 20px;
   right: 20px;
-  background-color: white;
+  background-color: rgba(255, 255, 255, 0.9);
   border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
   padding: 15px;
   width: 280px;
   max-height: 400px;
@@ -166,6 +192,40 @@ html, body, #root {
   padding-bottom: 0;
 }
 
+/* Road Link Information */
+.road-link-section,
+.road-data-section {
+  margin-top: 10px;
+  border-top: 1px solid #eee;
+  padding-top: 10px;
+}
+
+.road-link-section h3,
+.road-data-section h3 {
+  font-size: 1rem;
+  margin-bottom: 8px;
+  color: #555;
+}
+
+.road-link-item {
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+
+.road-link-item h4 {
+  font-size: 0.9rem;
+  margin: 0 0 5px 0;
+  color: #333;
+}
+
+.road-link-item p {
+  font-size: 0.8rem;
+  margin: 3px 0;
+  word-break: break-word;
+}
+
 /* API-debug info */
 .api-debug {
   margin-top: 10px;
@@ -182,6 +242,18 @@ html, body, #root {
   color: #dc3545;
 }
 
+/* Responsiv design för surfplattor */
+@media (max-width: 991px) {
+  .app-header h1 {
+    font-size: 1.3rem;
+  }
+  
+  .coordinates-panel,
+  .road-info-panel {
+    width: 250px;
+  }
+}
+
 /* Responsiv design för mobiler */
 @media (max-width: 768px) {
   .app-header h1 {
@@ -191,6 +263,7 @@ html, body, #root {
   .coordinates-panel,
   .road-info-panel {
     width: calc(50% - 30px);
+    max-height: 300px;
     font-size: 0.8rem;
   }
   
@@ -201,15 +274,22 @@ html, body, #root {
   
   .leaflet-popup-content {
     font-size: 0.8rem;
-    min-width: 180px;
+    min-width: 200px;
+  }
+
+  .api-method-btn {
+    font-size: 0.7rem;
+    padding: 4px 8px;
   }
 }
 
+/* Responsiv design för små mobiler */
 @media (max-width: 480px) {
   .coordinates-panel {
     left: 10px;
     bottom: 70px;
     width: calc(100% - 20px);
+    max-height: 150px;
   }
   
   .road-info-panel {
@@ -217,5 +297,10 @@ html, body, #root {
     right: 10px;
     bottom: 10px;
     width: calc(100% - 20px);
+    max-height: 150px;
+  }
+
+  .leaflet-control-zoom {
+    display: none; /* Dölj zoom-kontroller på små skärmar */
   }
 }

@@ -15,7 +15,30 @@
      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
      crossorigin=""></script>
      
+    <!-- Lägg till några meta-taggar för bättre mobilanpassning -->
+    <meta name="theme-color" content="#282c34">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+     
     <title>Vägdata Sverige</title>
+    <style>
+      /* Säkerställ att all content initieras korrekt */
+      html, body, #root {
+        height: 100%;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+      
+      /* Förhindra att innehåll går utanför skärmen på mobila enheter */
+      body {
+        position: fixed;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
