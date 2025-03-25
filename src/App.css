@@ -43,12 +43,15 @@ html, body, #root {
   font-size: 1.5rem;
 }
 
-/* API-metod knapp */
-.api-method-toggle {
+/* API-metod och debug knappar */
+.api-controls {
+  display: flex;
+  gap: 10px;
   margin-top: 5px;
 }
 
-.api-method-btn {
+.api-method-btn,
+.debug-btn {
   background-color: #555;
   color: white;
   border: none;
@@ -59,12 +62,17 @@ html, body, #root {
   transition: background-color 0.3s;
 }
 
-.api-method-btn:hover {
+.api-method-btn:hover,
+.debug-btn:hover {
   background-color: #444;
 }
 
 .api-method-btn.active {
   background-color: #3388ff;
+}
+
+.debug-btn.active {
+  background-color: #ff6b6b;
 }
 
 /* Karta */
@@ -240,6 +248,44 @@ html, body, #root {
 
 .api-error {
   color: #dc3545;
+}
+
+/* Debug-panel */
+.debug-panel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(0, 0, 0, 0.9);
+  color: #00ff00;
+  padding: 20px;
+  border-radius: 8px;
+  width: 90%;
+  height: 80%;
+  z-index: 2000;
+  overflow: auto;
+  font-family: monospace;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+}
+
+.debug-panel h2 {
+  color: white;
+  margin-top: 0;
+  margin-bottom: 10px;
+  border-bottom: 1px solid #444;
+  padding-bottom: 10px;
+}
+
+.debug-content {
+  overflow: auto;
+  max-height: calc(100% - 40px);
+}
+
+.debug-content pre {
+  margin: 0;
+  white-space: pre-wrap;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 /* Responsiv design för surfplattor */

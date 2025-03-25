@@ -19,14 +19,15 @@ export async function getNärmasteVäg(x, y) {
   const requestXml = `
     <REQUEST>
       <LOGIN authenticationkey="${API_KEY}"/>
-      <QUERY objecttype="Vägnummer" namespace="vägdata.nvdb_dk_o" schemaversion="1.2" limit="1">
-        <EVAL alias="Närmaste länk" function="$function.vägdata_v1.SnapToRoadNetwork(${x}, ${y})" />
+      <QUERY objecttype="Vägnummer" namespace="vägdata.nvdb_dk_o" schemaversion="1.2" limit="10">
+        <EVAL alias="Närmaste länk" function="$function.vägdata_v1.SnapToRoadNetwork(${x}, ${y}, MaxDistance=500)" />
       </QUERY>
     </REQUEST>
   `;
 
   try {
-    console.log('Skickar nätanknytnings-anrop till Trafikverket:', requestXml);
+    console.log(`Skickar nätanknytnings-anrop till Trafikverket med koordinater: E=${x}, N=${y}`);
+    console.log('XML-förfrågan:', requestXml);
     
     // Skicka POST-förfrågan till Trafikverkets API
     const response = await fetch(API_URL, {
@@ -45,8 +46,13 @@ export async function getNärmasteVäg(x, y) {
     }
 
     const data = await response.json();
-    console.log('Fick svar från API:', data);
-    return parseSnapToRoadData(data);
+    console.log('Fick svar från API:', JSON.stringify(data, null, 2));
+    
+    // Spara råa svaret för debugging
+    const result = parseSnapToRoadData(data);
+    result.rawResponse = data;
+    
+    return result;
   } catch (error) {
     console.error('Fel vid API-anrop till Trafikverket:', error);
     throw error;

@@ -18,6 +18,18 @@ function App() {
   const [roadLinkData, setRoadLinkData] = useState(null);
   const [coords, setCoords] = useState(null);
   const [apiMethod, setApiMethod] = useState('roadnet'); // 'roadnet' eller 'bbox'
+  const [showDebug, setShowDebug] = useState(false);
+  const [rawApiResponse, setRawApiResponse] = useState(null);
+
+  // Växla mellan API-metoder
+  const toggleApiMethod = () => {
+    setApiMethod(prev => prev === 'roadnet' ? 'bbox' : 'roadnet');
+  };
+
+  // Växla debug-panelen
+  const toggleDebug = () => {
+    setShowDebug(prev => !prev);
+  };
 
   useEffect(() => {
     // Kontrollera om kartan redan är initierad
@@ -97,6 +109,7 @@ function App() {
             // Använd nätanknytningsfunktionen
             const vägdata = await getNärmasteVäg(eastingSWEREF, northingSWEREF);
             setRoadLinkData(vägdata);
+            setRawApiResponse(vägdata.rawResponse);
             console.log("Satte vägnätdata:", vägdata);
             
             // Uppdatera popup med API-resultat
@@ -211,21 +224,22 @@ function App() {
     };
   }, [apiMethod]);
 
-  // Växla mellan API-metoder
-  const toggleApiMethod = () => {
-    setApiMethod(prev => prev === 'roadnet' ? 'bbox' : 'roadnet');
-  };
-
   return (
     <div className="app-container">
       <header className="app-header">
         <h1>Vägdata Sverige</h1>
-        <div className="api-method-toggle">
+        <div className="api-controls">
           <button 
             onClick={toggleApiMethod} 
             className={`api-method-btn ${apiMethod === 'roadnet' ? 'active' : ''}`}
           >
             {apiMethod === 'roadnet' ? 'Använder: Nätnätknytning' : 'Använder: Område-sökning'}
+          </button>
+          <button 
+            onClick={toggleDebug}
+            className={`debug-btn ${showDebug ? 'active' : ''}`}
+          >
+            {showDebug ? 'Dölj API-detaljer' : 'Visa API-detaljer'}
           </button>
         </div>
         {loading && <div className="loading-indicator">Hämtar vägdata...</div>}
@@ -319,6 +333,16 @@ function App() {
           <div className="api-debug">
             <p className="api-message">{roadLinkData.message}</p>
             {roadLinkData.error && <p className="api-error">Fel: {roadLinkData.error}</p>}
+          </div>
+        </div>
+      )}
+      
+      {/* Debug-panel för att visa råa API-svaret */}
+      {showDebug && rawApiResponse && (
+        <div className="debug-panel">
+          <h2>API Debug Info</h2>
+          <div className="debug-content">
+            <pre>{JSON.stringify(rawApiResponse, null, 2)}</pre>
           </div>
         </div>
       )}
