@@ -19,7 +19,10 @@ export async function getNärmasteVäg(x, y) {
   const requestXml = `
     <REQUEST>
       <LOGIN authenticationkey="${API_KEY}"/>
-      <QUERY objecttype="Vägnummer" namespace="vägdata.nvdb_dk_o" schemaversion="1.2" limit="10">
+      <QUERY objecttype="Vägnummer" namespace="vägdata.nvdb_dk_o" schemaversion="1.2" limit="1">
+        <INCLUDE>
+          GID
+        </INCLUDE>
         <EVAL alias="Närmaste länk" function="$function.vägdata_v1.SnapToRoadNetwork(${x}, ${y}, MaxDistance=500)" />
       </QUERY>
     </REQUEST>
