@@ -23,6 +23,7 @@ export async function getNärmasteVäg(x, y) {
         <INCLUDE>
           GID
         </INCLUDE>
+        <INCLUDE>Huvudnummer</INCLUDE>
         <EVAL alias="Närmaste länk" function="$function.vägdata_v1.SnapToRoadNetwork(${x}, ${y}, MaxDistance=500)" />
       </QUERY>
     </REQUEST>

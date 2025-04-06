@@ -170,8 +170,8 @@ html, body, #root {
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
   padding: 15px;
-  width: 280px;
-  max-height: 400px;
+  width: 320px;
+  max-height: 500px;
   overflow-y: auto;
   z-index: 1000;
 }
@@ -288,15 +288,65 @@ html, body, #root {
   line-height: 1.5;
 }
 
+/* General road sections */
+.road-section {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #eee;
+}
+
+.road-section h3 {
+  font-size: 1rem;
+  margin-bottom: 8px;
+  color: #555;
+}
+
+.road-section ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.road-section li {
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+
+.road-section li:last-child {
+  margin-bottom: 0;
+}
+
+/* Style for the different road data types */
+.road-section:nth-child(1) li {
+  border-left: 3px solid #4a90e2; /* Road name - blue */
+}
+
+.road-section:nth-child(2) li {
+  border-left: 3px solid #e74c3c; /* Speed limit - red */
+}
+
+.road-section:nth-child(3) li {
+  border-left: 3px solid #2ecc71; /* Road owner - green */
+}
+
+.road-section:nth-child(4) li {
+  border-left: 3px solid #f39c12; /* Road width - orange */
+}
+
 /* Responsiv design för surfplattor */
 @media (max-width: 991px) {
   .app-header h1 {
     font-size: 1.3rem;
   }
   
-  .coordinates-panel,
-  .road-info-panel {
+  .coordinates-panel {
     width: 250px;
+  }
+  
+  .road-info-panel {
+    width: 300px;
   }
 }
 
@@ -306,9 +356,14 @@ html, body, #root {
     font-size: 1.2rem;
   }
   
-  .coordinates-panel,
+  .coordinates-panel {
+    width: calc(40% - 30px);
+    max-height: 300px;
+    font-size: 0.8rem;
+  }
+  
   .road-info-panel {
-    width: calc(50% - 30px);
+    width: calc(60% - 30px);
     max-height: 300px;
     font-size: 0.8rem;
   }
@@ -333,9 +388,9 @@ html, body, #root {
 @media (max-width: 480px) {
   .coordinates-panel {
     left: 10px;
-    bottom: 70px;
+    bottom: calc(50% + 10px);
     width: calc(100% - 20px);
-    max-height: 150px;
+    max-height: calc(50% - 60px);
   }
   
   .road-info-panel {
@@ -343,7 +398,7 @@ html, body, #root {
     right: 10px;
     bottom: 10px;
     width: calc(100% - 20px);
-    max-height: 150px;
+    max-height: calc(50% - 20px);
   }
 
   .leaflet-control-zoom {

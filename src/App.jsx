@@ -261,25 +261,79 @@ function App() {
 
       {roadData && roadData.success && (
         <div className="road-info-panel">
-          <h2>Vägdata (Område-sökning)</h2>
-          {roadData.data && roadData.data.length > 0 ? (
-            <ul>
-              {roadData.data.map((väg, index) => (
-                <li key={index}>
-                  {väg.Huvudnummer && <div><strong>Vägnummer:</strong> {väg.Huvudnummer}</div>}
-                  {väg.Europavägsnummer && <div><strong>Europaväg:</strong> {väg.Europavägsnummer}</div>}
-                  {väg.Vägkategori && <div><strong>Kategori:</strong> {väg.Vägkategori}</div>}
-                  {väg.Name && <div><strong>Namn:</strong> {väg.Name}</div>}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p>Inga vägar hittades inom 500 meter från den valda punkten.</p>
+          <h2>Vägdata</h2>
+          
+          {roadData.data && (
+            <div>
+              {/* Visa gatunamn om det finns */}
+              {roadData.data.gatunamn && roadData.data.gatunamn.length > 0 && (
+                <div className="road-section">
+                  <h3>Gatuinformation</h3>
+                  <ul>
+                    {roadData.data.gatunamn.map((gata, index) => (
+                      <li key={`gata-${index}`}>
+                        {gata.Namn && <div><strong>Namn:</strong> {gata.Namn}</div>}
+                        {gata.GID && <div><strong>GID:</strong> {gata.GID}</div>}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              
+              {/* Visa hastighetsdata om det finns */}
+              {roadData.data.hastighet && roadData.data.hastighet.length > 0 && (
+                <div className="road-section">
+                  <h3>Hastighetsbegränsning</h3>
+                  <ul>
+                    {roadData.data.hastighet.map((hastighet, index) => (
+                      <li key={`hastighet-${index}`}>
+                        {hastighet.Värde && <div><strong>Hastighetsgräns:</strong> {hastighet.Värde} km/h</div>}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              
+              {/* Visa väghållardata om det finns */}
+              {roadData.data.väghållare && roadData.data.väghållare.length > 0 && (
+                <div className="road-section">
+                  <h3>Väghållare</h3>
+                  <ul>
+                    {roadData.data.väghållare.map((väghållare, index) => (
+                      <li key={`väghållare-${index}`}>
+                        {väghållare.Väghållartyp && <div><strong>Typ:</strong> {väghållare.Väghållartyp}</div>}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              
+              {/* Visa vägbredddata om det finns */}
+              {roadData.data.vägbredd && roadData.data.vägbredd.length > 0 && (
+                <div className="road-section">
+                  <h3>Vägbredd</h3>
+                  <ul>
+                    {roadData.data.vägbredd.map((bredd, index) => (
+                      <li key={`bredd-${index}`}>
+                        {bredd.Bredd && <div><strong>Bredd:</strong> {bredd.Bredd} meter</div>}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              
+              {Object.keys(roadData.data).every(key => 
+                !roadData.data[key] || roadData.data[key].length === 0
+              ) && (
+                <p>Inga detaljerade vägdata hittades för den valda punkten.</p>
+              )}
+            </div>
           )}
           
           <div className="api-debug">
             <p className="api-message">{roadData.message}</p>
             {roadData.error && <p className="api-error">Fel: {roadData.error}</p>}
+            {roadData.elementId && <p><strong>Element ID:</strong> {roadData.elementId}</p>}
           </div>
         </div>
       )}
@@ -312,7 +366,8 @@ function App() {
             </div>
           )}
           
-          {roadLinkData.data && roadLinkData.data.length > 0 ? (
+          {/* Visa grundläggande vägdata */}
+          {roadLinkData.data && roadLinkData.data.length > 0 && (
             <div className="road-data-section">
               <h3>Vägdata</h3>
               <ul>
@@ -326,7 +381,71 @@ function App() {
                 ))}
               </ul>
             </div>
-          ) : (
+          )}
+          
+          {/* Visa gatunamn om det finns */}
+          {roadLinkData.roadDetails && roadLinkData.roadDetails.data && roadLinkData.roadDetails.data.length > 0 && (
+            <div className="road-data-section">
+              <h3>Gatunamnsinformation</h3>
+              <ul>
+                {roadLinkData.roadDetails.data.map((gata, index) => (
+                  <li key={`gata-${index}`}>
+                    {gata.Namn && <div><strong>Namn:</strong> {gata.Namn}</div>}
+                    {gata.GID && <div><strong>GID:</strong> {gata.GID}</div>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          
+          {/* Visa hastighetsinformation om det finns */}
+          {roadLinkData.hastighetDetails && roadLinkData.hastighetDetails.data && roadLinkData.hastighetDetails.data.length > 0 && (
+            <div className="road-data-section">
+              <h3>Hastighetsbegränsning</h3>
+              <ul>
+                {roadLinkData.hastighetDetails.data.map((hastighet, index) => (
+                  <li key={`hastighet-${index}`}>
+                    {hastighet.Värde && <div><strong>Hastighetsgräns:</strong> {hastighet.Värde} km/h</div>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          
+          {/* Visa väghållare om det finns */}
+          {roadLinkData.väghållareDetails && roadLinkData.väghållareDetails.data && roadLinkData.väghållareDetails.data.length > 0 && (
+            <div className="road-data-section">
+              <h3>Väghållare</h3>
+              <ul>
+                {roadLinkData.väghållareDetails.data.map((väghållare, index) => (
+                  <li key={`väghållare-${index}`}>
+                    {väghållare.Väghållartyp && <div><strong>Typ:</strong> {väghållare.Väghållartyp}</div>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          
+          {/* Visa vägbredd om det finns */}
+          {roadLinkData.vägbreddDetails && roadLinkData.vägbreddDetails.data && roadLinkData.vägbreddDetails.data.length > 0 && (
+            <div className="road-data-section">
+              <h3>Vägbredd</h3>
+              <ul>
+                {roadLinkData.vägbreddDetails.data.map((bredd, index) => (
+                  <li key={`bredd-${index}`}>
+                    {bredd.Bredd && <div><strong>Bredd:</strong> {bredd.Bredd} meter</div>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          
+          {/* Visa meddelande om inga vägdata hittades */}
+          {(!roadLinkData.data || roadLinkData.data.length === 0) && 
+           (!roadLinkData.roadDetails || !roadLinkData.roadDetails.data || roadLinkData.roadDetails.data.length === 0) &&
+           (!roadLinkData.hastighetDetails || !roadLinkData.hastighetDetails.data || roadLinkData.hastighetDetails.data.length === 0) &&
+           (!roadLinkData.väghållareDetails || !roadLinkData.väghållareDetails.data || roadLinkData.väghållareDetails.data.length === 0) &&
+           (!roadLinkData.vägbreddDetails || !roadLinkData.vägbreddDetails.data || roadLinkData.vägbreddDetails.data.length === 0) && (
             <p>Inga vägdata hittades i sökresultatet.</p>
           )}
           
