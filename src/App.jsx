@@ -12,6 +12,7 @@ function App() {
   const mapRef = useRef(null);
   const leafletMapRef = useRef(null);
   const markerRef = useRef(null);
+  const roadPointMarkerRef = useRef(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [roadData, setRoadData] = useState(null);
@@ -77,25 +78,17 @@ function App() {
         setLoading(true);
         setError(null);
         
-        // Skapa eller uppdatera markör först, så den alltid visas oavsett API-resultat
+        // Ta bort tidigare markör om den finns
         if (markerRef.current) {
           map.removeLayer(markerRef.current);
         }
         
-        // Lägg till grundläggande markör utan vägdata
-        markerRef.current = window.L.marker([lat, lng])
-          .addTo(map)
-          .bindPopup(`
-            <div class="popup-content">
-              <h3>Koordinater</h3>
-              <p><strong>WGS84:</strong><br>${lat.toFixed(6)}, ${lng.toFixed(6)}</p>
-              <p><strong>SWEREF99TM:</strong><br>E: ${eastingSWEREF.toFixed(2)}<br>N: ${northingSWEREF.toFixed(2)}</p>
-              <hr>
-              <h3>API-status</h3>
-              <p>Hämtar vägdata...</p>
-            </div>
-          `)
-          .openPopup();
+        if (roadPointMarkerRef.current) {
+          map.removeLayer(roadPointMarkerRef.current);
+        }
+        
+        // Lägg till grundläggande markör utan popup
+        markerRef.current = window.L.marker([lat, lng]).addTo(map);
         
         // Rensa tidigare data
         setRoadData(null);
@@ -112,21 +105,6 @@ function App() {
             setRawApiResponse(vägdata.rawResponse);
             console.log("Satte vägnätdata:", vägdata);
             
-            // Uppdatera popup med API-resultat
-            if (markerRef.current && vägdata) {
-              markerRef.current.setPopupContent(`
-                <div class="popup-content">
-                  <h3>Koordinater</h3>
-                  <p><strong>WGS84:</strong><br>${lat.toFixed(6)}, ${lng.toFixed(6)}</p>
-                  <p><strong>SWEREF99TM:</strong><br>E: ${eastingSWEREF.toFixed(2)}<br>N: ${northingSWEREF.toFixed(2)}</p>
-                  <hr>
-                  <h3>API-status</h3>
-                  <p>${vägdata?.success ? 'API-anrop lyckades' : 'API-anrop misslyckades'}</p>
-                  <p>${vägdata?.message || (vägdata?.error ? `Fel: ${vägdata.error}` : '')}</p>
-                </div>
-              `);
-            }
-            
             // Om vi har en nätanknytningspunkt, visa den också
             if (vägdata?.evalResults && vägdata.evalResults['Närmaste länk']) {
               try {
@@ -141,14 +119,14 @@ function App() {
                   const [roadLng, roadLat] = proj4(sweref99tm, wgs84, [roadX, roadY]);
                   
                   // Skapa en road marker med annan färg
-                  window.L.circleMarker([roadLat, roadLng], {
+                  roadPointMarkerRef.current = window.L.circleMarker([roadLat, roadLng], {
                     radius: 8,
                     fillColor: '#3388ff',
                     color: '#fff',
                     weight: 2,
                     opacity: 1,
                     fillOpacity: 0.8
-                  }).addTo(map).bindPopup('Närmaste vägpunkt');
+                  }).addTo(map);
                 }
               } catch (err) {
                 console.error('Kunde inte visa nätanknytningspunkt:', err);
@@ -159,39 +137,10 @@ function App() {
             const vägdata = await getVägdataFrånKoordinat(eastingSWEREF, northingSWEREF);
             setRoadData(vägdata);
             console.log("Satte vägdata:", vägdata);
-            
-            // Uppdatera popup med API-resultat
-            if (markerRef.current && vägdata) {
-              markerRef.current.setPopupContent(`
-                <div class="popup-content">
-                  <h3>Koordinater</h3>
-                  <p><strong>WGS84:</strong><br>${lat.toFixed(6)}, ${lng.toFixed(6)}</p>
-                  <p><strong>SWEREF99TM:</strong><br>E: ${eastingSWEREF.toFixed(2)}<br>N: ${northingSWEREF.toFixed(2)}</p>
-                  <hr>
-                  <h3>API-status</h3>
-                  <p>${vägdata?.success ? 'API-anrop lyckades' : 'API-anrop misslyckades'}</p>
-                  <p>${vägdata?.message || (vägdata?.error ? `Fel: ${vägdata.error}` : '')}</p>
-                </div>
-              `);
-            }
           }
         } catch (apiError) {
           console.error('Fel vid API-anrop:', apiError);
           setError('Kunde inte hämta vägdata: ' + apiError.message);
-          
-          // Uppdatera popup med felmeddelande
-          if (markerRef.current) {
-            markerRef.current.setPopupContent(`
-              <div class="popup-content">
-                <h3>Koordinater</h3>
-                <p><strong>WGS84:</strong><br>${lat.toFixed(6)}, ${lng.toFixed(6)}</p>
-                <p><strong>SWEREF99TM:</strong><br>E: ${eastingSWEREF.toFixed(2)}<br>N: ${northingSWEREF.toFixed(2)}</p>
-                <hr>
-                <h3>API-status</h3>
-                <p>API-anrop misslyckades: ${apiError.message}</p>
-              </div>
-            `);
-          }
         }
       } catch (err) {
         console.error('Fel vid klickhantering:', err);
@@ -320,7 +269,7 @@ function App() {
             <ul className="data-list">
               {roadLinkData.hastighetDetails.data.map((hastighet, index) => (
                 <li key={`hastighet-${index}`} className="data-item">
-                  {hastighet.Värde && <p><strong>Hastighet:</strong> {hastighet.Värde} km/h</p>}
+                  {hastighet.Högsta_tillåtna_hastighet && <p><strong>Hastighet:</strong> {hastighet.Högsta_tillåtna_hastighet} km/h</p>}
                 </li>
               ))}
             </ul>
