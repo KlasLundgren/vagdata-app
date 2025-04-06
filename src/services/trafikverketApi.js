@@ -23,7 +23,6 @@ export async function getNärmasteVäg(x, y) {
         <INCLUDE>
           GID
         </INCLUDE>
-        <INCLUDE>Huvudnummer</INCLUDE>
         <EVAL alias="Närmaste länk" function="$function.vägdata_v1.SnapToRoadNetwork(${x}, ${y}, MaxDistance=500)" />
       </QUERY>
     </REQUEST>
@@ -31,7 +30,6 @@ export async function getNärmasteVäg(x, y) {
 
   try {
     console.log(`Skickar nätanknytnings-anrop till Trafikverket med koordinater: E=${x}, N=${y}`);
-    console.log('XML-förfrågan:', requestXml);
     
     // Skicka POST-förfrågan till Trafikverkets API
     const response = await fetch(API_URL, {
@@ -63,22 +61,33 @@ export async function getNärmasteVäg(x, y) {
         
         // Parallellisera API-anrop för olika vägegenskaper för bättre prestanda
         const [
-          roadDetails, 
-          hastighetDetails, 
-          väghållareDetails, 
-          vägbreddDetails
+          gatuNamnData, 
+          funktionellVägklassData,
+          hastighetData, 
+          väghållareData, 
+          vägbreddData
         ] = await Promise.all([
           getGatuNamnFrånElementId(elementId),
+          getFunktionellVägklassFrånElementId(elementId),
           getHastighetFrånElementId(elementId),
           getVäghållareFrånElementId(elementId),
           getVägbreddFrånElementId(elementId)
         ]);
         
         // Lägg till detaljerad information till resultatet
-        result.roadDetails = roadDetails;
-        result.hastighetDetails = hastighetDetails;
-        result.väghållareDetails = väghållareDetails;
-        result.vägbreddDetails = vägbreddDetails;
+        result.gatuNamnDetails = gatuNamnData;
+        result.funktionellVägklassDetails = funktionellVägklassData;
+        result.hastighetDetails = hastighetData;
+        result.väghållareDetails = väghållareData;
+        result.vägbreddDetails = vägbreddData;
+
+        console.log("API-svarsdetaljer:", {
+          gatuNamn: gatuNamnData,
+          funktionellVägklass: funktionellVägklassData,
+          hastighet: hastighetData,
+          väghållare: väghållareData,
+          vägbredd: vägbreddData
+        });
       } catch (detailsError) {
         console.error('Kunde inte hämta detaljerad väginformation:', detailsError);
         result.roadDetailsError = detailsError.message;
@@ -93,12 +102,12 @@ export async function getNärmasteVäg(x, y) {
 }
 
 /**
- * Hämtar detaljerad gatinformation baserat på element_ID
+ * Hämtar gatunamn baserat på element_ID
  * @param {string} elementId - Element_ID för väglänken
- * @returns {Promise<Object>} - Detaljerad vägdata
+ * @returns {Promise<Object>} - Detaljerad data om gatunamn
  */
 export async function getGatuNamnFrånElementId(elementId) {
-  // Skapa XML-förfrågan enligt Trafikverkets format
+  // Skapa XML-förfrågan för gatunamn
   const requestXml = `
     <REQUEST>
       <LOGIN authenticationkey="${API_KEY}" />
@@ -108,14 +117,12 @@ export async function getGatuNamnFrånElementId(elementId) {
         </FILTER>
         <INCLUDE>GID</INCLUDE>
         <INCLUDE>Namn</INCLUDE>
-        <INCLUDE>Geometry.WKT-SWEREF99TM-3D</INCLUDE>
       </QUERY>
     </REQUEST>
   `;
 
   try {
     console.log(`Hämtar gatunamn för element ID: ${elementId}`);
-    console.log('XML-förfrågan:', requestXml);
     
     // Skicka POST-förfrågan till Trafikverkets API
     const response = await fetch(API_URL, {
@@ -136,22 +143,69 @@ export async function getGatuNamnFrånElementId(elementId) {
     const data = await response.json();
     console.log('Fick svar från API (gatunamn):', JSON.stringify(data, null, 2));
     
-    // Om vi inte hittar Gata, försök med Funktionell vägklass
-    if (!data?.RESPONSE?.RESULT?.[0]?.Gata || data.RESPONSE.RESULT[0].Gata.length === 0) {
-      return await getFunktionellVägklassFrånElementId(elementId);
-    }
-    
-    return parseGatuData(data);
+    return parseGatuNamnData(data);
   } catch (error) {
     console.error('Fel vid API-anrop för gatunamn:', error);
+    return { 
+      success: false,
+      dataType: 'gatunamn',
+      error: 'Kunde inte hämta gatunamn',
+      message: error.message
+    };
+  }
+}
+
+/**
+ * Hämtar funktionell vägklass baserat på element_ID
+ * @param {string} elementId - Element_ID för väglänken
+ * @returns {Promise<Object>} - Detaljerad data om funktionell vägklass
+ */
+export async function getFunktionellVägklassFrånElementId(elementId) {
+  // Skapa XML-förfrågan för funktionell vägklass
+  const requestXml = `
+    <REQUEST>
+      <LOGIN authenticationkey="${API_KEY}" />
+      <QUERY objecttype="FunktionellVägklass" namespace="vägdata.nvdb_dk_o" schemaversion="1.2" limit="1">
+        <FILTER>
+          <EQ name="Element_Id" value="${elementId}"/>
+        </FILTER>
+        <INCLUDE>GID</INCLUDE>
+        <INCLUDE>Klass</INCLUDE>
+      </QUERY>
+    </REQUEST>
+  `;
+
+  try {
+    console.log(`Hämtar funktionell vägklass för element ID: ${elementId}`);
     
-    // Fallback till att hämta funktionell vägklass om gatunamn misslyckas
-    try {
-      return await getFunktionellVägklassFrånElementId(elementId);
-    } catch (fallbackError) {
-      console.error('Fallback till funktionell vägklass misslyckades:', fallbackError);
-      throw error; // Kasta ursprungliga felet om fallback också misslyckas
+    // Skicka POST-förfrågan till Trafikverkets API
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/xml',
+        'Accept': 'application/json'
+      },
+      body: requestXml
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('API svarade med felkod:', response.status, errorText);
+      throw new Error(`API-anrop misslyckades: ${response.status} ${response.statusText}`);
     }
+
+    const data = await response.json();
+    console.log('Fick svar från API (funktionell vägklass):', JSON.stringify(data, null, 2));
+    
+    return parseFunktionellVägklassData(data);
+  } catch (error) {
+    console.error('Fel vid API-anrop för funktionell vägklass:', error);
+    return { 
+      success: false,
+      dataType: 'funktionellVägklass',
+      error: 'Kunde inte hämta funktionell vägklass',
+      message: error.message
+    };
   }
 }
 
@@ -171,14 +225,12 @@ export async function getHastighetFrånElementId(elementId) {
         </FILTER>
         <INCLUDE>GID</INCLUDE>
         <INCLUDE>Högsta_tillåtna_hastighet</INCLUDE>
-        <INCLUDE>Geometry.WKT-SWEREF99TM-3D</INCLUDE>
       </QUERY>
     </REQUEST>
   `;
 
   try {
     console.log(`Hämtar hastighetsbegränsning för element ID: ${elementId}`);
-    console.log('XML-förfrågan:', requestXml);
     
     // Skicka POST-förfrågan till Trafikverkets API
     const response = await fetch(API_URL, {
@@ -228,14 +280,12 @@ export async function getVäghållareFrånElementId(elementId) {
         <INCLUDE>GID</INCLUDE>
         <INCLUDE>Väghållarnamn</INCLUDE>
         <INCLUDE>Väghållartyp</INCLUDE>
-        <INCLUDE>Geometry.WKT-SWEREF99TM-3D</INCLUDE>
       </QUERY>
     </REQUEST>
   `;
 
   try {
     console.log(`Hämtar väghållare för element ID: ${elementId}`);
-    console.log('XML-förfrågan:', requestXml);
     
     // Skicka POST-förfrågan till Trafikverkets API
     const response = await fetch(API_URL, {
@@ -284,14 +334,12 @@ export async function getVägbreddFrånElementId(elementId) {
         </FILTER>
         <INCLUDE>GID</INCLUDE>
         <INCLUDE>Bredd</INCLUDE>
-        <INCLUDE>Geometry.WKT-SWEREF99TM-3D</INCLUDE>
       </QUERY>
     </REQUEST>
   `;
 
   try {
     console.log(`Hämtar vägbredd för element ID: ${elementId}`);
-    console.log('XML-förfrågan:', requestXml);
     
     // Skicka POST-förfrågan till Trafikverkets API
     const response = await fetch(API_URL, {
@@ -321,54 +369,6 @@ export async function getVägbreddFrånElementId(elementId) {
       error: 'Kunde inte hämta vägbredd',
       message: error.message
     };
-  }
-}
-
-/**
- * Hämtar funktionell vägklass baserat på element_ID
- * @param {string} elementId - Element_ID för väglänken
- * @returns {Promise<Object>} - Detaljerad vägdata med funktionell vägklass
- */
-async function getFunktionellVägklassFrånElementId(elementId) {
-  // Skapa XML-förfrågan för funktionell vägklass
-  const requestXml = `
-    <REQUEST>
-      <LOGIN authenticationkey="${API_KEY}" />
-      <QUERY objecttype="FunktionellVägklass" namespace="vägdata.nvdb_dk_o" schemaversion="1.2" limit="1">
-        <FILTER>
-          <EQ name="Element_Id" value="${elementId}"/>
-        </FILTER>
-        <INCLUDE>GID</INCLUDE>
-        <INCLUDE>Klass</INCLUDE>
-        <INCLUDE>Geometry.WKT-SWEREF99TM-3D</INCLUDE>
-      </QUERY>
-    </REQUEST>
-  `;
-
-  try {
-    console.log(`Hämtar funktionell vägklass för element ID: ${elementId}`);
-    
-    // Skicka POST-förfrågan till Trafikverkets API
-    const response = await fetch(API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'text/xml',
-        'Accept': 'application/json'
-      },
-      body: requestXml
-    });
-
-    if (!response.ok) {
-      throw new Error(`API-anrop misslyckades: ${response.status} ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    console.log('Fick svar från API (funktionell vägklass):', JSON.stringify(data, null, 2));
-    
-    return parseFunktionellVägklassData(data);
-  } catch (error) {
-    console.error('Fel vid API-anrop för funktionell vägklass:', error);
-    throw error;
   }
 }
 
@@ -426,60 +426,67 @@ function parseSnapToRoadData(apiResponse) {
 }
 
 /**
- * Parsar API-svaret för gatudata
+ * Parsar API-svaret för gatunamn data
  * @param {Object} apiResponse - Svaret från Trafikverkets API
- * @returns {Object} - Formaterad gatudata
+ * @returns {Object} - Formaterad data för gatunamn
  */
-function parseGatuData(apiResponse) {
+function parseGatuNamnData(apiResponse) {
   try {
-    // Kontrollera att vi har giltiga data
+    // Kontrollera att vi har ett giltigt svar
     if (!apiResponse.RESPONSE || 
         !apiResponse.RESPONSE.RESULT || 
-        apiResponse.RESPONSE.RESULT.length === 0 ||
-        !apiResponse.RESPONSE.RESULT[0].Gata) {
-      console.log('Inga gatudata hittades i svaret');
+        apiResponse.RESPONSE.RESULT.length === 0) {
+      console.log('Ingen gatunamnsdata hittades i svaret');
       return { 
         success: true, 
         data: [], 
-        message: 'Inga gatudata hittades' 
+        message: 'Ingen gatunamnsdata hittades' 
       };
     }
 
-    // Extrahera gatudata från svaret
-    const gatudata = apiResponse.RESPONSE.RESULT[0].Gata || [];
-    const formattedData = Array.isArray(gatudata) ? gatudata : [gatudata];
+    // Försök hämta Gatunamn från resultatet
+    let gatunamnsData = [];
+    
+    // Kontrollera de olika möjliga platser där gatunamnsdata kan finnas
+    if (apiResponse.RESPONSE.RESULT[0].Gatunamn) {
+      gatunamnsData = Array.isArray(apiResponse.RESPONSE.RESULT[0].Gatunamn) 
+        ? apiResponse.RESPONSE.RESULT[0].Gatunamn 
+        : [apiResponse.RESPONSE.RESULT[0].Gatunamn];
+    }
+    
+    console.log("Parsed gatunamn data:", gatunamnsData);
     
     // Returnera formaterad data
     return {
       success: true,
-      dataType: 'gata',
-      data: formattedData,
-      message: formattedData.length > 0 ? 
-        `Hittade gatuinformation för ${formattedData.length} gator` : 
-        'Inga gatudata hittades'
+      dataType: 'gatunamn',
+      data: gatunamnsData,
+      message: gatunamnsData.length > 0 ? 
+        `Hittade ${gatunamnsData.length} gatunamn` : 
+        'Ingen gatunamnsdata hittades'
     };
   } catch (error) {
-    console.error('Fel vid parsning av gatudata:', error);
+    console.error('Fel vid parsning av gatunamnsdata:', error);
     return { 
       success: false,
-      error: 'Kunde inte tolka svaret från Trafikverket för gatudata',
+      dataType: 'gatunamn',
+      error: 'Kunde inte tolka svaret från Trafikverket för gatunamn',
       rawData: apiResponse 
     };
   }
 }
 
 /**
- * Parsar API-svaret för funktionell vägklass
+ * Parsar API-svaret för funktionell vägklass data
  * @param {Object} apiResponse - Svaret från Trafikverkets API
  * @returns {Object} - Formaterad data för funktionell vägklass
  */
 function parseFunktionellVägklassData(apiResponse) {
   try {
-    // Kontrollera att vi har giltiga data
+    // Kontrollera att vi har ett giltigt svar
     if (!apiResponse.RESPONSE || 
         !apiResponse.RESPONSE.RESULT || 
-        apiResponse.RESPONSE.RESULT.length === 0 ||
-        !apiResponse.RESPONSE.RESULT[0]['Funktionell vägklass']) {
+        apiResponse.RESPONSE.RESULT.length === 0) {
       console.log('Ingen data för funktionell vägklass hittades i svaret');
       return { 
         success: true, 
@@ -488,23 +495,31 @@ function parseFunktionellVägklassData(apiResponse) {
       };
     }
 
-    // Extrahera data från svaret
-    const vägklassData = apiResponse.RESPONSE.RESULT[0]['Funktionell vägklass'] || [];
-    const formattedData = Array.isArray(vägklassData) ? vägklassData : [vägklassData];
+    // Försök hämta funktionell vägklass från resultatet - testa båda möjliga nycklar
+    let vägklassData = [];
+    
+    if (apiResponse.RESPONSE.RESULT[0]['FunktionellVägklass']) {
+      vägklassData = Array.isArray(apiResponse.RESPONSE.RESULT[0]['FunktionellVägklass']) 
+        ? apiResponse.RESPONSE.RESULT[0]['FunktionellVägklass'] 
+        : [apiResponse.RESPONSE.RESULT[0]['FunktionellVägklass']];
+    }
+    
+    console.log("Parsed funktionell vägklass data:", vägklassData);
     
     // Returnera formaterad data
     return {
       success: true,
       dataType: 'funktionellVägklass',
-      data: formattedData,
-      message: formattedData.length > 0 ? 
-        `Hittade data för funktionell vägklass` : 
+      data: vägklassData,
+      message: vägklassData.length > 0 ? 
+        `Hittade funktionell vägklass: ${vägklassData[0]?.Klass || 'Okänd'}` : 
         'Ingen data för funktionell vägklass hittades'
     };
   } catch (error) {
-    console.error('Fel vid parsning av data för funktionell vägklass:', error);
+    console.error('Fel vid parsning av funktionell vägklass data:', error);
     return { 
       success: false,
+      dataType: 'funktionellVägklass',
       error: 'Kunde inte tolka svaret från Trafikverket för funktionell vägklass',
       rawData: apiResponse 
     };
@@ -518,36 +533,43 @@ function parseFunktionellVägklassData(apiResponse) {
  */
 function parseHastighetData(apiResponse) {
   try {
-    // Kontrollera att vi har giltiga data
+    // Kontrollera att vi har ett giltigt svar
     if (!apiResponse.RESPONSE || 
         !apiResponse.RESPONSE.RESULT || 
-        apiResponse.RESPONSE.RESULT.length === 0 ||
-        !apiResponse.RESPONSE.RESULT[0]['Hastighetsgräns']) {
-      console.log('Ingen data för hastighetsbegränsning hittades i svaret');
+        apiResponse.RESPONSE.RESULT.length === 0) {
+      console.log('Ingen hastighetsbegränsningsdata hittades i svaret');
       return { 
         success: true, 
         data: [], 
-        message: 'Ingen data för hastighetsbegränsning hittades' 
+        message: 'Ingen hastighetsbegränsningsdata hittades' 
       };
     }
 
-    // Extrahera data från svaret
-    const hastighetData = apiResponse.RESPONSE.RESULT[0]['Hastighetsgräns'] || [];
-    const formattedData = Array.isArray(hastighetData) ? hastighetData : [hastighetData];
+    // Försök hämta hastighetsbegränsning från resultatet
+    let hastighetData = [];
+    
+    if (apiResponse.RESPONSE.RESULT[0].Hastighetsgräns) {
+      hastighetData = Array.isArray(apiResponse.RESPONSE.RESULT[0].Hastighetsgräns) 
+        ? apiResponse.RESPONSE.RESULT[0].Hastighetsgräns 
+        : [apiResponse.RESPONSE.RESULT[0].Hastighetsgräns];
+    }
+    
+    console.log("Parsed hastighetsdata:", hastighetData);
     
     // Returnera formaterad data
     return {
       success: true,
       dataType: 'hastighet',
-      data: formattedData,
-      message: formattedData.length > 0 ? 
-        `Hittade hastighetsbegränsning: ${formattedData[0].Värde || 'N/A'} km/h` : 
-        'Ingen data för hastighetsbegränsning hittades'
+      data: hastighetData,
+      message: hastighetData.length > 0 ? 
+        `Hittade hastighetsbegränsning: ${hastighetData[0]?.Högsta_tillåtna_hastighet || 'N/A'} km/h` : 
+        'Ingen hastighetsbegränsningsdata hittades'
     };
   } catch (error) {
-    console.error('Fel vid parsning av hastighetsbegränsning:', error);
+    console.error('Fel vid parsning av hastighetsbegränsningsdata:', error);
     return { 
       success: false,
+      dataType: 'hastighet',
       error: 'Kunde inte tolka svaret från Trafikverket för hastighetsbegränsning',
       rawData: apiResponse 
     };
@@ -561,36 +583,43 @@ function parseHastighetData(apiResponse) {
  */
 function parseVäghållareData(apiResponse) {
   try {
-    // Kontrollera att vi har giltiga data
+    // Kontrollera att vi har ett giltigt svar
     if (!apiResponse.RESPONSE || 
         !apiResponse.RESPONSE.RESULT || 
-        apiResponse.RESPONSE.RESULT.length === 0 ||
-        !apiResponse.RESPONSE.RESULT[0]['Väghållare']) {
-      console.log('Ingen data för väghållare hittades i svaret');
+        apiResponse.RESPONSE.RESULT.length === 0) {
+      console.log('Ingen väghållardata hittades i svaret');
       return { 
         success: true, 
         data: [], 
-        message: 'Ingen data för väghållare hittades' 
+        message: 'Ingen väghållardata hittades' 
       };
     }
 
-    // Extrahera data från svaret
-    const väghållareData = apiResponse.RESPONSE.RESULT[0]['Väghållare'] || [];
-    const formattedData = Array.isArray(väghållareData) ? väghållareData : [väghållareData];
+    // Försök hämta väghållare från resultatet
+    let väghållareData = [];
+    
+    if (apiResponse.RESPONSE.RESULT[0].Väghållare) {
+      väghållareData = Array.isArray(apiResponse.RESPONSE.RESULT[0].Väghållare) 
+        ? apiResponse.RESPONSE.RESULT[0].Väghållare 
+        : [apiResponse.RESPONSE.RESULT[0].Väghållare];
+    }
+    
+    console.log("Parsed väghållardata:", väghållareData);
     
     // Returnera formaterad data
     return {
       success: true,
       dataType: 'väghållare',
-      data: formattedData,
-      message: formattedData.length > 0 ? 
-        `Hittade väghållare: ${formattedData[0].Väghållartyp || 'Okänd'}` : 
-        'Ingen data för väghållare hittades'
+      data: väghållareData,
+      message: väghållareData.length > 0 ? 
+        `Hittade väghållare: ${väghållareData[0]?.Väghållartyp || 'Okänd'}` : 
+        'Ingen väghållardata hittades'
     };
   } catch (error) {
-    console.error('Fel vid parsning av väghållare:', error);
+    console.error('Fel vid parsning av väghållardata:', error);
     return { 
       success: false,
+      dataType: 'väghållare',
       error: 'Kunde inte tolka svaret från Trafikverket för väghållare',
       rawData: apiResponse 
     };
@@ -604,36 +633,43 @@ function parseVäghållareData(apiResponse) {
  */
 function parseVägbreddData(apiResponse) {
   try {
-    // Kontrollera att vi har giltiga data
+    // Kontrollera att vi har ett giltigt svar
     if (!apiResponse.RESPONSE || 
         !apiResponse.RESPONSE.RESULT || 
-        apiResponse.RESPONSE.RESULT.length === 0 ||
-        !apiResponse.RESPONSE.RESULT[0]['Vägbredd']) {
-      console.log('Ingen data för vägbredd hittades i svaret');
+        apiResponse.RESPONSE.RESULT.length === 0) {
+      console.log('Ingen vägbreddsdata hittades i svaret');
       return { 
         success: true, 
         data: [], 
-        message: 'Ingen data för vägbredd hittades' 
+        message: 'Ingen vägbreddsdata hittades' 
       };
     }
 
-    // Extrahera data från svaret
-    const vägbreddData = apiResponse.RESPONSE.RESULT[0]['Vägbredd'] || [];
-    const formattedData = Array.isArray(vägbreddData) ? vägbreddData : [vägbreddData];
+    // Försök hämta vägbredd från resultatet
+    let vägbreddData = [];
+    
+    if (apiResponse.RESPONSE.RESULT[0].Vägbredd) {
+      vägbreddData = Array.isArray(apiResponse.RESPONSE.RESULT[0].Vägbredd) 
+        ? apiResponse.RESPONSE.RESULT[0].Vägbredd 
+        : [apiResponse.RESPONSE.RESULT[0].Vägbredd];
+    }
+    
+    console.log("Parsed vägbreddsdata:", vägbreddData);
     
     // Returnera formaterad data
     return {
       success: true,
       dataType: 'vägbredd',
-      data: formattedData,
-      message: formattedData.length > 0 ? 
-        `Hittade vägbredd: ${formattedData[0].Bredd || 'N/A'} meter` : 
-        'Ingen data för vägbredd hittades'
+      data: vägbreddData,
+      message: vägbreddData.length > 0 ? 
+        `Hittade vägbredd: ${vägbreddData[0]?.Bredd || 'N/A'} meter` : 
+        'Ingen vägbreddsdata hittades'
     };
   } catch (error) {
-    console.error('Fel vid parsning av vägbredd:', error);
+    console.error('Fel vid parsning av vägbreddsdata:', error);
     return { 
       success: false,
+      dataType: 'vägbredd',
       error: 'Kunde inte tolka svaret från Trafikverket för vägbredd',
       rawData: apiResponse 
     };
@@ -647,84 +683,108 @@ function parseVägbreddData(apiResponse) {
  * @returns {Promise<Object>} - Vägdata för området
  */
 export async function getVägdataFrånKoordinat(x, y) {
+  // Skapa en area runt den angivna punkten (500 meter i varje riktning)
+  const x1 = x - 500;
+  const y1 = y - 500;
+  const x2 = x + 500;
+  const y2 = y + 500;
+
+  // Skapa XML-förfrågan enligt Trafikverkets format
+  const requestXml = `
+    <REQUEST>
+      <LOGIN authenticationkey="${API_KEY}" />
+      <QUERY objecttype="Vägnummer" namespace="vägdata.nvdb_dk_o" schemaversion="1.2">
+        <FILTER>
+          <WITHIN name="Geometry.WKT-SWEREF99TM-3D" shape="box" value="${x1} ${y1}, ${x2} ${y2}"/>
+        </FILTER>
+      </QUERY>
+    </REQUEST>
+  `;
+
   try {
-    // Använd resultat från getNärmasteVäg som redan innehåller gatunamn
-    const närmasteVägResult = await getNärmasteVäg(x, y);
+    console.log(`Skickar API-anrop till Trafikverket för området: ${x1},${y1} - ${x2},${y2}`);
     
-    if (närmasteVägResult.success && 
-       (närmasteVägResult.roadDetails || 
-        närmasteVägResult.hastighetDetails || 
-        närmasteVägResult.väghållareDetails || 
-        närmasteVägResult.vägbreddDetails)) {
-      
-      // Samla all information i ett ställe
-      const vägInfo = {
-        gatunamn: närmasteVägResult.roadDetails?.data || [],
-        hastighet: närmasteVägResult.hastighetDetails?.data || [],
-        väghållare: närmasteVägResult.väghållareDetails?.data || [],
-        vägbredd: närmasteVägResult.vägbreddDetails?.data || []
-      };
-      
-      return {
-        success: true,
-        method: 'element_id',
-        data: vägInfo,
-        elementId: närmasteVägResult.evalResults?.['Närmaste länk']?.Element_Id,
-        message: `Hittade vägdata via element_ID: ${närmasteVägResult.evalResults?.['Närmaste länk']?.Element_Id}`,
-        rawResult: närmasteVägResult
-      };
-    } else {
-      return {
-        success: false,
-        method: 'element_id',
-        message: 'Kunde inte hitta vägdata via element_ID',
-        error: 'Ingen vägdata hittades för denna position'
-      };
-    }
-  } catch (error) {
-    console.error('Fel vid hämtning av vägdata:', error);
-    return { 
-      success: false,
-      error: `Kunde inte hämta vägdata: ${error.message}`,
-      message: 'Ett fel uppstod vid hämtning av vägdata'
-    };
-  }
+    // Skicka POST-förfrågan till Trafikverkets API
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+'Content-Type': 'text/xml',
+       'Accept': 'application/json'
+     },
+     body: requestXml
+   });
+
+   if (!response.ok) {
+     const errorText = await response.text();
+     console.error('API svarade med felkod:', response.status, errorText);
+     throw new Error(`API-anrop misslyckades: ${response.status} ${response.statusText}`);
+   }
+
+   const data = await response.json();
+   console.log('Fick svar från API för områdessökning:', data);
+   
+   // Använd nätanknytning för att få mer detaljerad information
+   try {
+     const detailedData = await getNärmasteVäg(x, y);
+     
+     // Kombinera resultat från båda anropen
+     const result = parseVägdata(data);
+     result.rawResponse = data;
+     
+     // Lägg till detaljerad information från nätanknytningen
+     if (detailedData.success) {
+       result.gatuNamnDetails = detailedData.gatuNamnDetails;
+       result.funktionellVägklassDetails = detailedData.funktionellVägklassDetails;
+       result.hastighetDetails = detailedData.hastighetDetails;
+       result.väghållareDetails = detailedData.väghållareDetails;
+       result.vägbreddDetails = detailedData.vägbreddDetails;
+     }
+     
+     return result;
+   } catch (detailsError) {
+     console.error('Kunde inte hämta detaljerad väginformation via nätanknytning:', detailsError);
+     return parseVägdata(data);
+   }
+ } catch (error) {
+   console.error('Fel vid API-anrop till Trafikverket för områdessökning:', error);
+   throw error;
+ }
 }
 
 /**
- * Parsar API-svaret för att hitta vägnummer och väginformation
- * @param {Object} apiResponse - Svaret från Trafikverkets API
- * @returns {Object} - Formaterad vägdata
- */
+* Parsar API-svaret för att hitta vägnummer och väginformation
+* @param {Object} apiResponse - Svaret från Trafikverkets API
+* @returns {Object} - Formaterad vägdata
+*/
 function parseVägdata(apiResponse) {
-  try {
-    // Kontrollera att vi har giltiga data
-    if (!apiResponse.RESPONSE || 
-        !apiResponse.RESPONSE.RESULT || 
-        apiResponse.RESPONSE.RESULT.length === 0) {
-      console.log('Inga vägdata hittades i svaret');
-      return { 
-        success: true, 
-        data: [], 
-        message: 'Inga vägdata hittades för denna position' 
-      };
-    }
+ try {
+   // Kontrollera att vi har giltiga data
+   if (!apiResponse.RESPONSE || 
+       !apiResponse.RESPONSE.RESULT || 
+       apiResponse.RESPONSE.RESULT.length === 0) {
+     console.log('Inga vägdata hittades i svaret');
+     return { 
+       success: true, 
+       data: [], 
+       message: 'Inga vägdata hittades för denna position' 
+     };
+   }
 
-    // Extrahera vägdata från svaret
-    const vägdata = apiResponse.RESPONSE.RESULT[0].Vägnummer || [];
-    
-    // Returnera formaterad data
-    return {
-      success: true,
-      data: Array.isArray(vägdata) ? vägdata : [vägdata],
-      message: vägdata.length > 0 ? `Hittade ${vägdata.length} vägar` : 'Inga vägdata hittades för denna position'
-    };
-  } catch (error) {
-    console.error('Fel vid parsning av vägdata:', error);
-    return { 
-      success: false,
-      error: 'Kunde inte tolka svaret från Trafikverket',
-      rawData: apiResponse 
-    };
-  }
+   // Extrahera vägdata från svaret
+   const vägdata = apiResponse.RESPONSE.RESULT[0].Vägnummer || [];
+   
+   // Returnera formaterad data
+   return {
+     success: true,
+     data: Array.isArray(vägdata) ? vägdata : [vägdata],
+     message: vägdata.length > 0 ? `Hittade ${vägdata.length} vägar` : 'Inga vägdata hittades för denna position'
+   };
+ } catch (error) {
+   console.error('Fel vid parsning av vägdata:', error);
+   return { 
+     success: false,
+     error: 'Kunde inte tolka svaret från Trafikverket',
+     rawData: apiResponse 
+   };
+ }
 }

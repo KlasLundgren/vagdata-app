@@ -136,6 +136,7 @@ function App() {
             // Använd box-sökning
             const vägdata = await getVägdataFrånKoordinat(eastingSWEREF, northingSWEREF);
             setRoadData(vägdata);
+            setRawApiResponse(vägdata.rawResponse);
             console.log("Satte vägdata:", vägdata);
           }
         } catch (apiError) {
@@ -184,10 +185,9 @@ function App() {
     );
   };
 
-  // Helper för att logga och visa strukturen i API-svaret
-  const logAndCheck = (data, path) => {
-    console.log(`Checking path ${path}:`, data);
-    return data;
+  // Funktion för att säkert kolla om en array har innehåll
+  const hasData = (array) => {
+    return Array.isArray(array) && array.length > 0;
   };
 
   return (
@@ -217,7 +217,7 @@ function App() {
         className="map-container"
       ></div>
 
-      {/* Ny enhetlig sidopanel som ersätter de tre tidigare separata panelerna */}
+      {/* Enhetlig sidopanel för vägdata */}
       {(coords || roadData || roadLinkData) && (
         <div className="side-panel">
           <h2>Vägdata information</h2>
@@ -245,11 +245,11 @@ function App() {
             </div>
           ))}
 
-          {/* Vägnummerdatasektion */}
-          {roadLinkData?.data && roadLinkData.data.length > 0 && renderInfoSection("Vägnummerdata", (
+          {/* Vägnummerdata */}
+          {hasData(roadLinkData?.data) && renderInfoSection("Vägnummerdata", (
             <ul className="data-list">
               {roadLinkData.data.map((väg, index) => (
-                <li key={index} className="data-item">
+                <li key={`vägnr-${index}`} className="data-item">
                   {väg.Huvudnummer && <p><strong>Vägnummer:</strong> {väg.Huvudnummer}</p>}
                   {väg.Europavägsnummer && <p><strong>Europaväg:</strong> {väg.Europavägsnummer}</p>}
                   {väg.Vägkategori && <p><strong>Kategori:</strong> {väg.Vägkategori}</p>}
@@ -259,53 +259,11 @@ function App() {
             </ul>
           ))}
 
-          {/* Funktionell Vägklass via direkta raw-responsen */}
-          {roadLinkData?.rawResponse?.RESPONSE?.RESULT?.[0]?.["Funktionell vägklass"] && renderInfoSection("Funktionell Vägklass", (
+          {/* Gatunamn */}
+          {hasData(roadLinkData?.gatuNamnDetails?.data) && renderInfoSection("Gatunamn", (
             <ul className="data-list">
-              {Array.isArray(roadLinkData.rawResponse.RESPONSE.RESULT[0]["Funktionell vägklass"]) ? 
-                roadLinkData.rawResponse.RESPONSE.RESULT[0]["Funktionell vägklass"].map((vägklass, index) => (
-                  <li key={`vägklass-raw-${index}`} className="data-item">
-                    {vägklass.Klass && <p><strong>Klass:</strong> {vägklass.Klass}</p>}
-                    {vägklass.GID && <p><strong>GID:</strong> {vägklass.GID}</p>}
-                  </li>
-                ))
-                :
-                <li className="data-item">
-                  {roadLinkData.rawResponse.RESPONSE.RESULT[0]["Funktionell vägklass"].Klass && 
-                    <p><strong>Klass:</strong> {roadLinkData.rawResponse.RESPONSE.RESULT[0]["Funktionell vägklass"].Klass}</p>}
-                  {roadLinkData.rawResponse.RESPONSE.RESULT[0]["Funktionell vägklass"].GID && 
-                    <p><strong>GID:</strong> {roadLinkData.rawResponse.RESPONSE.RESULT[0]["Funktionell vägklass"].GID}</p>}
-                </li>
-              }
-            </ul>
-          ))}
-
-          {/* Gatunamn via direkta raw-responsen */}
-          {roadLinkData?.rawResponse?.RESPONSE?.RESULT?.[0]?.Gatunamn && renderInfoSection("Gatunamn", (
-            <ul className="data-list">
-              {Array.isArray(roadLinkData.rawResponse.RESPONSE.RESULT[0].Gatunamn) ? 
-                roadLinkData.rawResponse.RESPONSE.RESULT[0].Gatunamn.map((gata, index) => (
-                  <li key={`gata-raw-${index}`} className="data-item">
-                    {gata.Namn && <p><strong>Namn:</strong> {gata.Namn}</p>}
-                    {gata.GID && <p><strong>GID:</strong> {gata.GID}</p>}
-                  </li>
-                ))
-                :
-                <li className="data-item">
-                  {roadLinkData.rawResponse.RESPONSE.RESULT[0].Gatunamn.Namn && 
-                    <p><strong>Namn:</strong> {roadLinkData.rawResponse.RESPONSE.RESULT[0].Gatunamn.Namn}</p>}
-                  {roadLinkData.rawResponse.RESPONSE.RESULT[0].Gatunamn.GID && 
-                    <p><strong>GID:</strong> {roadLinkData.rawResponse.RESPONSE.RESULT[0].Gatunamn.GID}</p>}
-                </li>
-              }
-            </ul>
-          ))}
-
-          {/* Också försök med det formaterade data objektet */}
-          {roadLinkData?.roadDetails?.data && roadLinkData.roadDetails.data.length > 0 && renderInfoSection("Gatunamn (via details)", (
-            <ul className="data-list">
-              {roadLinkData.roadDetails.data.map((gata, index) => (
-                <li key={`gata-details-${index}`} className="data-item">
+              {roadLinkData.gatuNamnDetails.data.map((gata, index) => (
+                <li key={`gata-${index}`} className="data-item">
                   {gata.Namn && <p><strong>Namn:</strong> {gata.Namn}</p>}
                   {gata.GID && <p><strong>GID:</strong> {gata.GID}</p>}
                 </li>
@@ -313,11 +271,11 @@ function App() {
             </ul>
           ))}
 
-          {/* Funktionell Vägklass via details objektet */}
-          {roadLinkData?.funktionellVägklassDetails?.data && roadLinkData.funktionellVägklassDetails.data.length > 0 && renderInfoSection("Funktionell Vägklass (via details)", (
+          {/* Funktionell Vägklass */}
+          {hasData(roadLinkData?.funktionellVägklassDetails?.data) && renderInfoSection("Funktionell Vägklass", (
             <ul className="data-list">
               {roadLinkData.funktionellVägklassDetails.data.map((vägklass, index) => (
-                <li key={`vägklass-details-${index}`} className="data-item">
+                <li key={`vägklass-${index}`} className="data-item">
                   {vägklass.Klass && <p><strong>Klass:</strong> {vägklass.Klass}</p>}
                   {vägklass.GID && <p><strong>GID:</strong> {vägklass.GID}</p>}
                 </li>
@@ -325,34 +283,38 @@ function App() {
             </ul>
           ))}
 
-          {/* Hastighetsbegränsning - korrigerad enligt din ändring */}
-          {roadLinkData?.hastighetDetails?.data && roadLinkData.hastighetDetails.data.length > 0 && renderInfoSection("Hastighetsbegränsning", (
+          {/* Hastighetsbegränsning */}
+          {hasData(roadLinkData?.hastighetDetails?.data) && renderInfoSection("Hastighetsbegränsning", (
             <ul className="data-list">
               {roadLinkData.hastighetDetails.data.map((hastighet, index) => (
                 <li key={`hastighet-${index}`} className="data-item">
                   {hastighet.Högsta_tillåtna_hastighet && <p><strong>Hastighet:</strong> {hastighet.Högsta_tillåtna_hastighet} km/h</p>}
+                  {hastighet.GID && <p><strong>GID:</strong> {hastighet.GID}</p>}
                 </li>
               ))}
             </ul>
           ))}
 
           {/* Väghållare */}
-          {roadLinkData?.väghållareDetails?.data && roadLinkData.väghållareDetails.data.length > 0 && renderInfoSection("Väghållare", (
+          {hasData(roadLinkData?.väghållareDetails?.data) && renderInfoSection("Väghållare", (
             <ul className="data-list">
               {roadLinkData.väghållareDetails.data.map((väghållare, index) => (
                 <li key={`väghållare-${index}`} className="data-item">
                   {väghållare.Väghållartyp && <p><strong>Typ:</strong> {väghållare.Väghållartyp}</p>}
+                  {väghållare.Väghållarnamn && <p><strong>Namn:</strong> {väghållare.Väghållarnamn}</p>}
+                  {väghållare.GID && <p><strong>GID:</strong> {väghållare.GID}</p>}
                 </li>
               ))}
             </ul>
           ))}
 
           {/* Vägbredd */}
-          {roadLinkData?.vägbreddDetails?.data && roadLinkData.vägbreddDetails.data.length > 0 && renderInfoSection("Vägbredd", (
+          {hasData(roadLinkData?.vägbreddDetails?.data) && renderInfoSection("Vägbredd", (
             <ul className="data-list">
               {roadLinkData.vägbreddDetails.data.map((bredd, index) => (
                 <li key={`bredd-${index}`} className="data-item">
                   {bredd.Bredd && <p><strong>Bredd:</strong> {bredd.Bredd} meter</p>}
+                  {bredd.GID && <p><strong>GID:</strong> {bredd.GID}</p>}
                 </li>
               ))}
             </ul>
@@ -361,87 +323,65 @@ function App() {
           {/* Om vi använder område-sökning istället för nätanknytning */}
           {roadData?.success && roadData.data && renderInfoSection("Vägdata (Område-sökning)", (
             <div>
-              {typeof roadData.data === 'object' && !Array.isArray(roadData.data) ? (
-                <div>
-                  {/* Gatunamn - korrigerad enligt API-svaret */}
-                  {roadData.data.Gatunamn && roadData.data.Gatunamn.length > 0 && (
-                    <div className="data-item">
-                      <h4>Gatunamn</h4>
-                      {roadData.data.Gatunamn.map((gata, idx) => (
-                        <p key={idx}>{gata.Namn || 'Okänt namn'}</p>
-                      ))}
-                    </div>
-                  )}
-                  
-                  {/* Funktionell Vägklass */}
-                  {roadData.data.FunktionellVägklass && roadData.data.FunktionellVägklass.length > 0 && (
-                    <div className="data-item">
-                      <h4>Funktionell Vägklass</h4>
-                      {roadData.data.FunktionellVägklass.map((klass, idx) => (
-                        <p key={idx}><strong>Klass:</strong> {klass.Klass || 'Okänd'}</p>
-                      ))}
-                    </div>
-                  )}
-                  
-                  {/* Försök med raw-respons också här */}
-                  {roadData.rawResponse?.RESPONSE?.RESULT?.[0]?.FunktionellVägklass && (
-                    <div className="data-item">
-                      <h4>Funktionell Vägklass (raw)</h4>
-                      {Array.isArray(roadData.rawResponse.RESPONSE.RESULT[0].FunktionellVägklass) ?
-                        roadData.rawResponse.RESPONSE.RESULT[0].FunktionellVägklass.map((klass, idx) => (
-                          <p key={`raw-${idx}`}><strong>Klass:</strong> {klass.Klass || 'Okänd'}</p>
-                        ))
-                        :
-                        <p><strong>Klass:</strong> {roadData.rawResponse.RESPONSE.RESULT[0].FunktionellVägklass.Klass || 'Okänd'}</p>
-                      }
-                    </div>
-                  )}
-                  
-                  {/* Hastighet */}
-                  {roadData.data.hastighet && roadData.data.hastighet.length > 0 && (
-                    <div className="data-item">
-                      <h4>Hastighetsbegränsning</h4>
-                      {roadData.data.hastighet.map((hast, idx) => (
-                        <p key={idx}>{hast.Högsta_tillåtna_hastighet || 'Okänd'} km/h</p>
-                      ))}
-                    </div>
-                  )}
-                  
-                  {/* Väghållare */}
-                  {roadData.data.väghållare && roadData.data.väghållare.length > 0 && (
-                    <div className="data-item">
-                      <h4>Väghållare</h4>
-                      {roadData.data.väghållare.map((vh, idx) => (
-                        <p key={idx}>{vh.Väghållartyp || 'Okänd'}</p>
-                      ))}
-                    </div>
-                  )}
-                  
-                  {/* Vägbredd */}
-                  {roadData.data.vägbredd && roadData.data.vägbredd.length > 0 && (
-                    <div className="data-item">
-                      <h4>Vägbredd</h4>
-                      {roadData.data.vägbredd.map((bredd, idx) => (
-                        <p key={idx}>{bredd.Bredd || 'Okänd'} meter</p>
-                      ))}
-                    </div>
-                  )}
-                </div>
+              {Array.isArray(roadData.data) && roadData.data.length > 0 ? (
+                <ul className="data-list">
+                  {roadData.data.map((väg, index) => (
+                    <li key={index} className="data-item">
+                      {väg.Huvudnummer && <p><strong>Vägnummer:</strong> {väg.Huvudnummer}</p>}
+                      {väg.Europavägsnummer && <p><strong>Europaväg:</strong> {väg.Europavägsnummer}</p>}
+                      {väg.Vägkategori && <p><strong>Kategori:</strong> {väg.Vägkategori}</p>}
+                      {väg.Name && <p><strong>Namn:</strong> {väg.Name}</p>}
+                    </li>
+                  ))}
+                </ul>
               ) : (
-                Array.isArray(roadData.data) && roadData.data.length > 0 ? (
-                  <ul className="data-list">
-                    {roadData.data.map((väg, index) => (
-                      <li key={index} className="data-item">
-                        {väg.Huvudnummer && <p><strong>Vägnummer:</strong> {väg.Huvudnummer}</p>}
-                        {väg.Europavägsnummer && <p><strong>Europaväg:</strong> {väg.Europavägsnummer}</p>}
-                        {väg.Vägkategori && <p><strong>Kategori:</strong> {väg.Vägkategori}</p>}
-                        {väg.Name && <p><strong>Namn:</strong> {väg.Name}</p>}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p>Inga detaljerade vägdata hittades för denna position.</p>
-                )
+                <p>Inga detaljerade vägdata hittades för denna position.</p>
+              )}
+
+              {/* Visa ytterligare data som kan vara tillgänglig från områdessökningen */}
+              {hasData(roadData.gatuNamnDetails?.data) && (
+                <div className="data-item">
+                  <h4>Gatunamn</h4>
+                  {roadData.gatuNamnDetails.data.map((gata, idx) => (
+                    <p key={idx}>{gata.Namn || 'Okänt namn'}</p>
+                  ))}
+                </div>
+              )}
+              
+              {hasData(roadData.funktionellVägklassDetails?.data) && (
+                <div className="data-item">
+                  <h4>Funktionell Vägklass</h4>
+                  {roadData.funktionellVägklassDetails.data.map((klass, idx) => (
+                    <p key={idx}><strong>Klass:</strong> {klass.Klass || 'Okänd'}</p>
+                  ))}
+                </div>
+              )}
+              
+              {hasData(roadData.hastighetDetails?.data) && (
+                <div className="data-item">
+                  <h4>Hastighetsbegränsning</h4>
+                  {roadData.hastighetDetails.data.map((hast, idx) => (
+                    <p key={idx}>{hast.Högsta_tillåtna_hastighet || 'Okänd'} km/h</p>
+                  ))}
+                </div>
+              )}
+              
+              {hasData(roadData.väghållareDetails?.data) && (
+                <div className="data-item">
+                  <h4>Väghållare</h4>
+                  {roadData.väghållareDetails.data.map((vh, idx) => (
+                    <p key={idx}>{vh.Väghållartyp || 'Okänd'}</p>
+                  ))}
+                </div>
+              )}
+              
+              {hasData(roadData.vägbreddDetails?.data) && (
+                <div className="data-item">
+                  <h4>Vägbredd</h4>
+                  {roadData.vägbreddDetails.data.map((bredd, idx) => (
+                    <p key={idx}>{bredd.Bredd || 'Okänd'} meter</p>
+                  ))}
+                </div>
               )}
             </div>
           ))}
