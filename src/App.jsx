@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import 'leaflet/dist/leaflet.css';
 import proj4 from 'proj4';
-import { getVägdataFrånKoordinat, getNärmasteVäg } from './services/trafikverketApi';
+import { getNärmasteVäg } from './services/trafikverketApi';
 import './App.css';
 
 // Definiera projektioner för konvertering
@@ -15,17 +15,10 @@ function App() {
   const roadPointMarkerRef = useRef(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [roadData, setRoadData] = useState(null);
   const [roadLinkData, setRoadLinkData] = useState(null);
   const [coords, setCoords] = useState(null);
-  const [apiMethod, setApiMethod] = useState('roadnet'); // 'roadnet' eller 'bbox'
   const [showDebug, setShowDebug] = useState(false);
   const [rawApiResponse, setRawApiResponse] = useState(null);
-
-  // Växla mellan API-metoder
-  const toggleApiMethod = () => {
-    setApiMethod(prev => prev === 'roadnet' ? 'bbox' : 'roadnet');
-  };
 
   // Växla debug-panelen
   const toggleDebug = () => {
@@ -91,53 +84,43 @@ function App() {
         markerRef.current = window.L.marker([lat, lng]).addTo(map);
         
         // Rensa tidigare data
-        setRoadData(null);
         setRoadLinkData(null);
         
         try {
-          // Hämta vägdata från API:et beroende på vald metod
+          // Hämta vägdata från API:et med nätanknytningsfunktionen
           console.log(`Söker vägdata runt koordinat: ${eastingSWEREF}, ${northingSWEREF}`);
           
-          if (apiMethod === 'roadnet') {
-            // Använd nätanknytningsfunktionen
-            const vägdata = await getNärmasteVäg(eastingSWEREF, northingSWEREF);
-            setRoadLinkData(vägdata);
-            setRawApiResponse(vägdata.rawResponse);
-            console.log("Satte vägnätdata:", vägdata);
-            
-            // Om vi har en nätanknytningspunkt, visa den också
-            if (vägdata?.evalResults && vägdata.evalResults['Närmaste länk']) {
-              try {
-                const linkPoint = vägdata.evalResults['Närmaste länk'].Geometry;
-                // Extrahera koordinaterna från POINT (xxx.xx yyy.yy)
-                const match = linkPoint.match(/POINT \(([0-9.]+) ([0-9.]+)\)/);
-                if (match && match.length === 3) {
-                  const roadX = parseFloat(match[1]);
-                  const roadY = parseFloat(match[2]);
-                  
-                  // Konvertera SWEREF99TM till WGS84 för att visa på kartan
-                  const [roadLng, roadLat] = proj4(sweref99tm, wgs84, [roadX, roadY]);
-                  
-                  // Skapa en road marker med annan färg
-                  roadPointMarkerRef.current = window.L.circleMarker([roadLat, roadLng], {
-                    radius: 8,
-                    fillColor: '#3388ff',
-                    color: '#fff',
-                    weight: 2,
-                    opacity: 1,
-                    fillOpacity: 0.8
-                  }).addTo(map);
-                }
-              } catch (err) {
-                console.error('Kunde inte visa nätanknytningspunkt:', err);
+          const vägdata = await getNärmasteVäg(eastingSWEREF, northingSWEREF);
+          setRoadLinkData(vägdata);
+          setRawApiResponse(vägdata.rawResponse);
+          console.log("Satte vägnätdata:", vägdata);
+          
+          // Om vi har en nätanknytningspunkt, visa den också
+          if (vägdata?.evalResults && vägdata.evalResults['Närmaste länk']) {
+            try {
+              const linkPoint = vägdata.evalResults['Närmaste länk'].Geometry;
+              // Extrahera koordinaterna från POINT (xxx.xx yyy.yy)
+              const match = linkPoint.match(/POINT \(([0-9.]+) ([0-9.]+)\)/);
+              if (match && match.length === 3) {
+                const roadX = parseFloat(match[1]);
+                const roadY = parseFloat(match[2]);
+                
+                // Konvertera SWEREF99TM till WGS84 för att visa på kartan
+                const [roadLng, roadLat] = proj4(sweref99tm, wgs84, [roadX, roadY]);
+                
+                // Skapa en road marker med annan färg
+                roadPointMarkerRef.current = window.L.circleMarker([roadLat, roadLng], {
+                  radius: 8,
+                  fillColor: '#3388ff',
+                  color: '#fff',
+                  weight: 2,
+                  opacity: 1,
+                  fillOpacity: 0.8
+                }).addTo(map);
               }
+            } catch (err) {
+              console.error('Kunde inte visa nätanknytningspunkt:', err);
             }
-          } else {
-            // Använd box-sökning
-            const vägdata = await getVägdataFrånKoordinat(eastingSWEREF, northingSWEREF);
-            setRoadData(vägdata);
-            setRawApiResponse(vägdata.rawResponse);
-            console.log("Satte vägdata:", vägdata);
           }
         } catch (apiError) {
           console.error('Fel vid API-anrop:', apiError);
@@ -172,7 +155,7 @@ function App() {
         leafletMapRef.current = null;
       }
     };
-  }, [apiMethod]);
+  }, []);
 
   // Funktion för att rendera en informationssektion i sidopanelen
   const renderInfoSection = (title, content) => {
@@ -196,12 +179,6 @@ function App() {
         <h1>Vägdata Sverige</h1>
         <div className="api-controls">
           <button 
-            onClick={toggleApiMethod} 
-            className={`api-method-btn ${apiMethod === 'roadnet' ? 'active' : ''}`}
-          >
-            {apiMethod === 'roadnet' ? 'Använder: Nätnätknytning' : 'Använder: Område-sökning'}
-          </button>
-          <button 
             onClick={toggleDebug}
             className={`debug-btn ${showDebug ? 'active' : ''}`}
           >
@@ -218,7 +195,7 @@ function App() {
       ></div>
 
       {/* Enhetlig sidopanel för vägdata */}
-      {(coords || roadData || roadLinkData) && (
+      {(coords || roadLinkData) && (
         <div className="side-panel">
           <h2>Vägdata information</h2>
           
@@ -320,77 +297,9 @@ function App() {
             </ul>
           ))}
 
-          {/* Om vi använder område-sökning istället för nätanknytning */}
-          {roadData?.success && roadData.data && renderInfoSection("Vägdata (Område-sökning)", (
-            <div>
-              {Array.isArray(roadData.data) && roadData.data.length > 0 ? (
-                <ul className="data-list">
-                  {roadData.data.map((väg, index) => (
-                    <li key={index} className="data-item">
-                      {väg.Huvudnummer && <p><strong>Vägnummer:</strong> {väg.Huvudnummer}</p>}
-                      {väg.Europavägsnummer && <p><strong>Europaväg:</strong> {väg.Europavägsnummer}</p>}
-                      {väg.Vägkategori && <p><strong>Kategori:</strong> {väg.Vägkategori}</p>}
-                      {väg.Name && <p><strong>Namn:</strong> {väg.Name}</p>}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p>Inga detaljerade vägdata hittades för denna position.</p>
-              )}
-
-              {/* Visa ytterligare data som kan vara tillgänglig från områdessökningen */}
-              {hasData(roadData.gatuNamnDetails?.data) && (
-                <div className="data-item">
-                  <h4>Gatunamn</h4>
-                  {roadData.gatuNamnDetails.data.map((gata, idx) => (
-                    <p key={idx}>{gata.Namn || 'Okänt namn'}</p>
-                  ))}
-                </div>
-              )}
-              
-              {hasData(roadData.funktionellVägklassDetails?.data) && (
-                <div className="data-item">
-                  <h4>Funktionell Vägklass</h4>
-                  {roadData.funktionellVägklassDetails.data.map((klass, idx) => (
-                    <p key={idx}><strong>Klass:</strong> {klass.Klass || 'Okänd'}</p>
-                  ))}
-                </div>
-              )}
-              
-              {hasData(roadData.hastighetDetails?.data) && (
-                <div className="data-item">
-                  <h4>Hastighetsbegränsning</h4>
-                  {roadData.hastighetDetails.data.map((hast, idx) => (
-                    <p key={idx}>{hast.Högsta_tillåtna_hastighet || 'Okänd'} km/h</p>
-                  ))}
-                </div>
-              )}
-              
-              {hasData(roadData.väghållareDetails?.data) && (
-                <div className="data-item">
-                  <h4>Väghållare</h4>
-                  {roadData.väghållareDetails.data.map((vh, idx) => (
-                    <p key={idx}>{vh.Väghållartyp || 'Okänd'}</p>
-                  ))}
-                </div>
-              )}
-              
-              {hasData(roadData.vägbreddDetails?.data) && (
-                <div className="data-item">
-                  <h4>Vägbredd</h4>
-                  {roadData.vägbreddDetails.data.map((bredd, idx) => (
-                    <p key={idx}>{bredd.Bredd || 'Okänd'} meter</p>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-
           {/* API-status/debug-information */}
           <div className="api-status">
-            {roadData?.message && <p className="status-message">{roadData.message}</p>}
             {roadLinkData?.message && <p className="status-message">{roadLinkData.message}</p>}
-            {roadData?.error && <p className="error-message">Fel: {roadData.error}</p>}
             {roadLinkData?.error && <p className="error-message">Fel: {roadLinkData.error}</p>}
           </div>
         </div>
